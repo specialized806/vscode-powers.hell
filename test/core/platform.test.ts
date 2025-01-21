@@ -18,10 +18,20 @@ import { stripQuotePair } from "../../src/utils";
 const platformMock = rewire("../../src/platform");
 
 // eslint-disable-next-line @typescript-eslint/require-await
-async function fakeCheckIfFileOrDirectoryExists(targetPath: string | vscode.Uri): Promise<boolean> {
+async function fakeCheckIfFileExists(targetPath: string | vscode.Uri): Promise<boolean> {
     try {
-        fs.lstatSync(targetPath instanceof vscode.Uri ? targetPath.fsPath : targetPath);
-        return true;
+        const stat = fs.lstatSync(targetPath instanceof vscode.Uri ? targetPath.fsPath : targetPath);
+        return stat.isFile();
+    } catch {
+        return false;
+    }
+}
+
+// eslint-disable-next-line @typescript-eslint/require-await
+async function fakeCheckIfDirectoryExists(targetPath: string | vscode.Uri): Promise<boolean> {
+    try {
+        const stat = fs.lstatSync(targetPath instanceof vscode.Uri ? targetPath.fsPath : targetPath);
+        return stat.isDirectory();
     } catch {
         return false;
     }
@@ -33,8 +43,8 @@ async function fakeReadDirectory(targetPath: string | vscode.Uri): Promise<strin
 }
 
 const utilsMock = {
-    checkIfFileExists: fakeCheckIfFileOrDirectoryExists,
-    checkIfDirectoryExists: fakeCheckIfFileOrDirectoryExists,
+    checkIfFileExists: fakeCheckIfFileExists,
+    checkIfDirectoryExists: fakeCheckIfDirectoryExists,
     readDirectory: fakeReadDirectory,
     stripQuotePair: stripQuotePair
 };
@@ -467,7 +477,10 @@ if (process.platform === "win32") {
                 isOS64Bit: true,
                 isProcess64Bit: true,
             },
-            environmentVars: {},
+            environmentVars: {
+                "USERNAME": "test",
+                "USERPROFILE": "C:\\Users\\test",
+            },
             expectedPowerShellSequence: [
                 {
                     exePath: "C:\\Users\\test\\pwsh\\pwsh.exe",
@@ -480,28 +493,8 @@ if (process.platform === "win32") {
                     supportsProperArguments: true
                 },
                 {
-                    exePath: "C:\\Users\\test\\pwsh\\pwsh",
-                    displayName: "pwsh-no-exe",
-                    supportsProperArguments: true
-                },
-                {
                     exePath: "C:\\Users\\test\\pwsh\\pwsh.exe",
                     displayName: "pwsh-no-exe",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "C:\\Users\\test\\pwsh\\pwsh\\pwsh.exe",
-                    displayName: "pwsh-no-exe",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "C:\\Users\\test\\pwsh\\pwsh\\powershell.exe",
-                    displayName: "pwsh-no-exe",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "C:\\Users\\test\\pwsh\\",
-                    displayName: "pwsh-folder",
                     supportsProperArguments: true
                 },
                 {
@@ -510,27 +503,7 @@ if (process.platform === "win32") {
                     supportsProperArguments: true
                 },
                 {
-                    exePath: "C:\\Users\\test\\pwsh\\powershell.exe",
-                    displayName: "pwsh-folder",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "C:\\Users\\test\\pwsh",
-                    displayName: "pwsh-folder-no-slash",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "C:\\Users\\test\\pwsh.exe",
-                    displayName: "pwsh-folder-no-slash",
-                    supportsProperArguments: true
-                },
-                {
                     exePath: "C:\\Users\\test\\pwsh\\pwsh.exe",
-                    displayName: "pwsh-folder-no-slash",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "C:\\Users\\test\\pwsh\\powershell.exe",
                     displayName: "pwsh-folder-no-slash",
                     supportsProperArguments: true
                 },
@@ -545,7 +518,14 @@ if (process.platform === "win32") {
                     supportsProperArguments: true
                 },
             ],
-            filesystem: {},
+            filesystem: {
+                "C:\\Users\\test\\pwsh": {
+                    "pwsh.exe": "",
+                },
+                [path.join(os.homedir(), "pwsh")]: {
+                    "pwsh.exe": "",
+                }
+            },
         }
     ];
 } else {
@@ -653,7 +633,7 @@ if (process.platform === "win32") {
             ],
             filesystem: {
                 "/usr/bin": {
-                    pwsh: "",
+                    "pwsh": "",
                 },
             },
         },
@@ -674,7 +654,7 @@ if (process.platform === "win32") {
             ],
             filesystem: {
                 "/snap/bin": {
-                    pwsh: "",
+                    "pwsh": "",
                 },
             },
         },
@@ -695,7 +675,7 @@ if (process.platform === "win32") {
             ],
             filesystem: {
                 "/usr/local/bin": {
-                    pwsh: "",
+                    "pwsh": "",
                 },
             },
         },
@@ -719,7 +699,7 @@ if (process.platform === "win32") {
             ],
             filesystem: {
                 "/Users/test/.dotnet/tools": {
-                    pwsh: "",
+                    "pwsh": "",
                 },
             },
         },
@@ -743,73 +723,74 @@ if (process.platform === "win32") {
             ],
             filesystem: {
                 "/home/test/.dotnet/tools": {
-                    pwsh: "",
+                    "pwsh": "",
                 },
             },
         },
     ];
 
     additionalPowerShellExes = {
-        "pwsh": "/home/bin/pwsh",
+        "pwsh": "/home/test/bin/pwsh",
         "pwsh-tilde": "~/bin/pwsh",
-        "pwsh-folder": "/home/bin/",
-        "pwsh-folder-no-slash": "/home/bin",
-        "pwsh-single-quotes": "'/home/bin/pwsh'",
-        "pwsh-double-quotes": "\"/home/bin/pwsh\"",
+        "pwsh-folder": "/home/test/bin/",
+        "pwsh-folder-no-slash": "/home/test/bin",
+        "pwsh-single-quotes": "'/home/test/bin/pwsh'",
+        "pwsh-double-quotes": "\"/home/test/bin/pwsh\"",
     };
 
     successAdditionalTestCases = [
-        {   // Also sufficient for macOS as the behavior is the same
-            name: "Linux (Additional PowerShell Executables)",
+        {
+            name: "Linux/macOS (Additional PowerShell Executables)",
             platformDetails: {
                 operatingSystem: platform.OperatingSystem.Linux,
                 isOS64Bit: true,
                 isProcess64Bit: true,
             },
-            environmentVars: {},
+            environmentVars: {
+                "USER": "test",
+                "HOME": "/home/test",
+            },
             expectedPowerShellSequence: [
                 {
-                    exePath: "/home/bin/pwsh",
+                    exePath: "/home/test/bin/pwsh",
                     displayName: "pwsh",
                     supportsProperArguments: true
                 },
                 {
+                    // untildify ignores the HOME mock so this is platform-dependent
                     exePath: path.join(os.homedir(), "bin", "pwsh"),
                     displayName: "pwsh-tilde",
                     supportsProperArguments: true
                 },
                 {
-                    exePath: "/home/bin/",
+                    exePath: "/home/test/bin/pwsh",
                     displayName: "pwsh-folder",
                     supportsProperArguments: true
                 },
                 {
-                    exePath: "/home/bin/pwsh",
-                    displayName: "pwsh-folder",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "/home/bin",
+                    exePath: "/home/test/bin/pwsh",
                     displayName: "pwsh-folder-no-slash",
                     supportsProperArguments: true
                 },
                 {
-                    exePath: "/home/bin/pwsh",
-                    displayName: "pwsh-folder-no-slash",
-                    supportsProperArguments: true
-                },
-                {
-                    exePath: "/home/bin/pwsh",
+                    exePath: "/home/test/bin/pwsh",
                     displayName: "pwsh-single-quotes",
                     supportsProperArguments: true
                 },
                 {
-                    exePath: "/home/bin/pwsh",
+                    exePath: "/home/test/bin/pwsh",
                     displayName: "pwsh-double-quotes",
                     supportsProperArguments: true
                 },
             ],
-            filesystem: {},
+            filesystem: {
+                "/home/test/bin": {
+                    "pwsh": "",
+                },
+                [path.join(os.homedir(), "bin")]: {
+                    "pwsh": "",
+                }
+            },
         }
     ];
 }
@@ -988,7 +969,7 @@ describe("Platform module", function () {
 
                 function getWinPSPath(systemDir: string): string {
                     return path.join(
-                        testPlatform.environmentVars.windir!,
+                        testPlatform.environmentVars.windir,
                         systemDir,
                         "WindowsPowerShell",
                         "v1.0",
@@ -1024,13 +1005,13 @@ describe("Platform module", function () {
         });
 
         for (const testPlatform of successAdditionalTestCases) {
-            it(`Guesses for ${testPlatform.name}`, function () {
+            it(`Guesses for ${testPlatform.name}`, async function () {
                 setupTestEnvironment(testPlatform);
 
                 const powerShellExeFinder = new platformMock.PowerShellExeFinder(testPlatform.platformDetails, additionalPowerShellExes);
 
                 let i = 0;
-                for (const additionalPwsh of powerShellExeFinder.enumerateAdditionalPowerShellInstallations()) {
+                for await (const additionalPwsh of powerShellExeFinder.enumerateAdditionalPowerShellInstallations()) {
                     const expectedPowerShell = testPlatform.expectedPowerShellSequence[i];
                     i++;
 

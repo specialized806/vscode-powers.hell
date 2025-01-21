@@ -12,7 +12,7 @@
 3. Follow the [development instructions](https://github.com/PowerShell/PowerShellEditorServices#development) for
    PowerShell Editor Services. **You will need to complete this step before proceeding**.
 
-4. Install [Node.js](https://nodejs.org/en/) 16.x or higher.
+4. Install [Node.js](https://nodejs.org/en/) 18.x or higher.
 
 5. Install [Visual Studio Code](https://code.visualstudio.com).
    Open the multi-root workspace file in this repo, `extension-dev.code-workspace`.
@@ -21,6 +21,26 @@
    > Otherwise VS Code will erroneously complain that it isn't able to use it to format TypeScript files.
 
 [fork]: https://help.github.com/articles/fork-a-repo/
+
+## Tracking Upstream Dependencies
+
+As a VS Code extension, we first rely on the `engine` field of `package.json` to
+state the lowest version of VS Code we support.
+
+When our `engine` field is updated the development dependency `@types/vscode`
+must be updated to match. Note that it uses `~` (not `^`) so as to accept new
+patches with `npm update` but not new minor versions. Then we check that version
+of VS Code's own `package.json` file for their [`electron`][] dependency. The
+major version of [Electron][] will tell us which [Node.js][] is included, which
+dictates which version of Node.js the extension is eventually run with. This
+lets us finally update our `@types/node` development dependency to match, our
+developer machines if necessary, the CI and OneBranch pipeline tasks, and the
+`.tsconfig` file. Note that the version of `@types/node` will not necessarily
+exactly match the version of Node.js, but the major version should.
+
+[`electron`]: https://github.com/microsoft/vscode/blob/138f619c86f1199955d53b4166bef66ef252935c/package.json#L156
+[Electron]: https://releases.electronjs.org/release/v32.2.6
+[Node.js]: https://nodejs.org/en/download/package-manager
 
 ### Building the Code
 
@@ -37,10 +57,19 @@ Invoke-Build Build
 Explore the `vscode-powershell.build.ps1` file for other build targets.
 
 ### Launching the extension
+First, ensure you have completed a build as instructed above, as the launch templates do not check some prerequisites for performance reasons.
 
-To debug the extension use one of the provided `Launch Extension` debug configurations (remember to rebuild first).
-You can simultaneously use the `Attach to Editor Services` configuration to attach the .NET debugger to the PowerShell process running the server.
-Try the `powershell.developer.editorServicesWaitForDebugger` setting to attach before startup.
+To debug the extension use one of the provided `Launch Extension` debug configurations.
+1. `Launch Extension`: Launches the debugger using your personal profile settings.
+2. `Temp Profile`: Launches VS Code with a temp profile that resets on every launch. Useful for "out of the box" environment testing.
+3. `Isolated Profile`: Launches the debugger with a persistent debug profile specific to the extension, so you can preserve some settings or test certain prerequisites.
+
+All three templates use pre-launch tasks to build the code, and support automatic restart of the extension host on changes to the Extension source code. [Hot Reload](https://devblogs.microsoft.com/dotnet/introducing-net-hot-reload/) is also enabled for PowerShell Editor Services.
+
+> [!WARNING]
+> There is a current limitation that, if you restart the extension/extension host or it is restarted due to a extension code change, the editor services attachment will be disconnected due to the PSES terminal being terminated, and you will either need to restart the debug session completely, or do a manual build of PSES and run the `Attach to Editor Services` debug launch manually.
+
+Try the `powershell.developer.editorServicesWaitForDebugger` setting to ensure that you are fully attached before the extension startup process continues.
 
 ## Contributing Snippets
 
@@ -50,29 +79,42 @@ For more information on contributing snippets please read our
 ## Creating a Release
 
 These are the current steps for creating a release for both the editor services
-and the extension. ADO access is restricted to Microsoft employees and is used
-to sign and validate the produced binaries before publishing on behalf of
-Microsoft. The comments are manual steps.
+and the extension. Azure DevOps access is restricted to Microsoft employees and
+is used to sign and validate the produced binaries before publishing on behalf
+of Microsoft. Assume `origin` is GitHub and `ado` is Azure DevOps.
 
 ```powershell
-Import-Module ./tools/ReleaseTools.psm1
-New-ReleaseBundle -PsesVersion <version> -VsceVersion <version>
+cd ./PowerShellEditorServices
+git checkout -B release
+./tools/updateVersion.ps1 -Version "4.0.0" -Changes "Major release!"
 # Amend changelog as necessary
-# Push release branches to ADO
-# Download and test assets
-# Check telemetry for stability before releasing
-# Publish draft releases and merge (don't squash!) branches
-# Permit vscode-extension pipeline to publish to marketplace
+git push --force-with-lease origin
+# Open, approve, and merge PR on GitHub
+cd ../vscode-powershell
+git checkout -B release
+./tools/updateVersion.ps1 -Version "2024.4.0" -Changes "Major release!"
+# Amend changelog as necessary
+git push --force-with-lease origin
+# Open, approve, and merge PR on GitHub
+cd ../PowerShellEditorServices
+git checkout main
+git pull
+git push ado HEAD:release
+cd ../vscode-powershell
+git checkout main
+git pull
+git push ado HEAD:release
+# Download and test assets from draft GitHub Releases
+# Publish releases, ensuring tag is at release commit in `main`
+# Permit pipeline to publish to marketplace
 ```
 
-If rolling from pre-release to release, use:
+If rolling from pre-release to release, do not change the version of PowerShell
+Editor Services between a pre-release and the subsequent release! We only
+need to release the extension.
 
-```powershell
-New-Release -RepositoryName vscode-powershell -Version <version>
-```
-
-This is because we do not change the version of PowerShell Editor Services between a
-pre-release and the subsequent release, so we only need to release the extension.
+The Azure DevOps pipelines have to build off a PR merged to `main` for _reasons_,
+hence that repo is a superset including all our commits plus signed PR merge commits.
 
 ### Versioning
 
@@ -118,7 +160,7 @@ pre-release tags in full) we can revisit this.
 Furthermore, for releases, the minor version must be _even_ (like 0, 2, etc.) and for
 pre-releases it must be _odd_ (like 1, 3, etc.), and an upcoming release's version must be
 `n-1` of the pre-release which previews it. That is, release `v2024.0.0` is previewed in
-the pre-release `v2024.1.0`. This scheme is designed such that the "newest" (by version)
+the pre-release `v2024.1.0-preview`. This scheme is designed such that the "newest" (by version)
 release is always a pre-release, so that the VS Code marketplace _always_ shows a
 pre-release option. When we previously did this the other way around (incrementing the
 release as `n+1` to the pre-release), every time we released, the pre-release option
