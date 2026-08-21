@@ -1,0 +1,5 @@
+dist/
+modules/
+out/
+.config/
+*.lock.yml

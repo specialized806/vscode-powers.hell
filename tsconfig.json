@@ -1,26 +1,18 @@
 {
   "compilerOptions": {
-    // NOTE: The TypeScript compiler is only used for building the tests (and
-    // the sources which the tests need). The extension is built with `esbuild`.
-    "module": "commonjs",
-    "outDir": "out",
-    "target": "ES2022",
-    "lib": [
-      "ES2022",
-      "DOM"
-    ],
-    "sourceMap": true,
-    "rootDir": ".",
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitOverride": true,
-    "noImplicitReturns": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "target": "ESNext",
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "useUnknownInCatchVariables": true
+    "skipLibCheck": true,
+    "allowJs": true,
+    "checkJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noEmit": true,
+    "module": "Preserve",
+    "types": ["mocha"]
   },
-  "include": [ "src", "test" ],
-  "exclude": [ "node_modules/@ungap/structured-clone" ]
+  "include": ["**/*.ts", "eslint.config.mjs", ".vscode-test.mjs"],
+  "exclude": ["node_modules"]
 }

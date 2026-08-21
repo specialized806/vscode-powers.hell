@@ -1,0 +1,91 @@
+name: CI Tests
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+
+jobs:
+  ci:
+    name: node
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_GENERATE_ASPNET_CERTIFICATE: false
+      DISPLAY: ":99.0"
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PowerShellEditorServices
+        uses: actions/checkout@v7
+        with:
+          repository: PowerShell/PowerShellEditorServices
+          path: PowerShellEditorServices
+
+      - name: Checkout vscode-powershell
+        uses: actions/checkout@v7
+        with:
+          path: vscode-powershell
+
+      - name: Validate snippets JSON file
+        shell: pwsh
+        run: $null = ConvertFrom-Json -InputObject (Get-Content -Raw -Path './snippets/PowerShell.json')
+        working-directory: vscode-powershell
+
+      - name: Install dotnet
+        uses: actions/setup-dotnet@v5
+        with:
+          cache: true
+          cache-dependency-path: PowerShellEditorServices/**/*.csproj
+          global-json-file: PowerShellEditorServices/global.json
+          config-file: PowerShellEditorServices/nuget.config
+
+      - name: Install PSResources
+        shell: pwsh
+        run: ./vscode-powershell/tools/installPSResources.ps1
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vscode-powershell/package-lock.json
+
+      - name: Start X virtual framebuffer
+        if: matrix.os == 'ubuntu-latest'
+        run: /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
+      - name: Build, test and package
+        shell: pwsh
+        run: Invoke-Build -Configuration Release
+        working-directory: vscode-powershell
+
+      - name: Rename VSIX to include OS name
+        if: always()
+        shell: pwsh
+        # archive: false uses the filename as the artifact name, so we need unique names across matrix jobs
+        run: Get-Item out/*.vsix -ErrorAction SilentlyContinue | Rename-Item -NewName { $_.BaseName + '-${{ matrix.os }}' + $_.Extension }
+        working-directory: vscode-powershell
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          # archive: false uploads the .vsix directly (no zip wrapper) using the filename as the artifact name
+          path: "vscode-powershell/out/*.vsix"
+          archive: false
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: vscode-powershell-test-results-${{ matrix.os }}
+          path: "**/test-results.xml"

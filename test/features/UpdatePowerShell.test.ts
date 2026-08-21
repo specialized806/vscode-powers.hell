@@ -2,21 +2,20 @@
 // Licensed under the MIT License.
 
 import assert from "assert";
+import * as vscode from "vscode";
 import { UpdatePowerShell } from "../../src/features/UpdatePowerShell";
-import { Settings } from "../../src/settings";
-import { IPowerShellVersionDetails } from "../../src/session";
+import type { IPowerShellVersionDetails } from "../../src/session";
+import { changeSetting } from "../../src/settings";
 import { testLogger } from "../utils";
 
 describe("UpdatePowerShell feature", function () {
     let currentUpdateSetting: string | undefined;
-    const settings = new Settings();
 
     before(function () {
         currentUpdateSetting = process.env.POWERSHELL_UPDATECHECK;
     });
 
     beforeEach(function () {
-        settings.promptToUpdatePowerShell = true;
         process.env.POWERSHELL_UPDATECHECK = "Default";
     });
 
@@ -25,51 +24,65 @@ describe("UpdatePowerShell feature", function () {
     });
 
     describe("When it should check for an update", function () {
-        it("Won't check if 'promptToUpdatePowerShell' is false", function () {
-            settings.promptToUpdatePowerShell = false;
-            const version: IPowerShellVersionDetails = {
-                "version": "7.3.0",
-                "edition": "Core",
-                "commit": "7.3.0",
-                "architecture": "X64"
-            };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
-            // @ts-expect-error method is private.
-            assert(!updater.shouldCheckForUpdate());
+        it("Won't check if 'promptToUpdatePowerShell' is false", async function () {
+            await changeSetting(
+                "promptToUpdatePowerShell",
+                false,
+                vscode.ConfigurationTarget.Workspace,
+                undefined,
+            );
+            try {
+                const version: IPowerShellVersionDetails = {
+                    version: "7.3.0",
+                    edition: "Core",
+                    commit: "7.3.0",
+                    architecture: "X64",
+                };
+                const updater = new UpdatePowerShell(testLogger, version);
+                // @ts-expect-error method is private.
+                assert(!updater.shouldCheckForUpdate());
+            } finally {
+                await changeSetting(
+                    "promptToUpdatePowerShell",
+                    undefined,
+                    vscode.ConfigurationTarget.Workspace,
+                    undefined,
+                );
+            }
         });
 
         it("Won't check for Windows PowerShell", function () {
             const version: IPowerShellVersionDetails = {
-                "version": "5.1.22621",
-                "edition": "Desktop",
-                "commit": "5.1.22621",
-                "architecture": "X64"
+                version: "5.1.22621",
+                edition: "Desktop",
+                commit: "5.1.22621",
+                architecture: "X64",
             };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
+            const updater = new UpdatePowerShell(testLogger, version);
             // @ts-expect-error method is private.
             assert(!updater.shouldCheckForUpdate());
         });
 
         it("Won't check for a development build of PowerShell", function () {
             const version: IPowerShellVersionDetails = {
-                "version": "7.3.0-preview.3",
-                "edition": "Core",
-                "commit": "7.3.0-preview.3-508-g07175ae0ff8eb7306fe0b0fc7d19bdef4fbf2d67",
-                "architecture": "Arm64"
+                version: "7.3.0-preview.3",
+                edition: "Core",
+                commit: "7.3.0-preview.3-508-g07175ae0ff8eb7306fe0b0fc7d19bdef4fbf2d67",
+                architecture: "Arm64",
             };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
+            const updater = new UpdatePowerShell(testLogger, version);
             // @ts-expect-error method is private.
             assert(!updater.shouldCheckForUpdate());
         });
 
         it("Won't check for a daily build of PowerShell", function () {
             const version: IPowerShellVersionDetails = {
-                "version": "7.3.0-daily20221206.1",
-                "edition": "Core",
-                "commit": "7.3.0-daily20221206.1",
-                "architecture": "Arm64"
+                version: "7.3.0-daily20221206.1",
+                edition: "Core",
+                commit: "7.3.0-daily20221206.1",
+                architecture: "Arm64",
             };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
+            const updater = new UpdatePowerShell(testLogger, version);
             // @ts-expect-error method is private.
             assert(!updater.shouldCheckForUpdate());
         });
@@ -77,57 +90,60 @@ describe("UpdatePowerShell feature", function () {
         it("Won't check if POWERSHELL_UPDATECHECK is 'Off'", function () {
             process.env.POWERSHELL_UPDATECHECK = "Off";
             const version: IPowerShellVersionDetails = {
-                "version": "7.3.0",
-                "edition": "Core",
-                "commit": "7.3.0",
-                "architecture": "X64"
+                version: "7.3.0",
+                edition: "Core",
+                commit: "7.3.0",
+                architecture: "X64",
             };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
+            const updater = new UpdatePowerShell(testLogger, version);
             // @ts-expect-error method is private.
             assert(!updater.shouldCheckForUpdate());
         });
 
-        it ("Should otherwise check to update PowerShell", function () {
+        it("Should otherwise check to update PowerShell", function () {
             const version: IPowerShellVersionDetails = {
-                "version": "7.3.0",
-                "edition": "Core",
-                "commit": "7.3.0",
-                "architecture": "X64"
+                version: "7.3.0",
+                edition: "Core",
+                commit: "7.3.0",
+                architecture: "X64",
             };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
+            const updater = new UpdatePowerShell(testLogger, version);
             // @ts-expect-error method is private.
             assert(updater.shouldCheckForUpdate());
         });
     });
 
     describe("Which version it gets", function () {
-        it("Would update to LTS", async function() {
+        it("Would update to LTS", async function () {
             process.env.POWERSHELL_UPDATECHECK = "LTS";
             const version: IPowerShellVersionDetails = {
-                "version": "7.0.0",
-                "edition": "Core",
-                "commit": "7.0.0",
-                "architecture": "X64"
+                version: "7.2.0",
+                edition: "Core",
+                commit: "7.2.0",
+                architecture: "X64",
             };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
+            const updater = new UpdatePowerShell(testLogger, version);
             // @ts-expect-error method is private.
-            const tag: string | undefined = await updater.maybeGetNewRelease();
-            // NOTE: This will need to be updated each new major LTS.
-            assert(tag?.startsWith("v7.2"));
+            const tag: string = (await updater.maybeGetNewRelease()) ?? "";
+            // NOTE: This will need to be updated each time an LTS is released.
+            // Also sometimes the prior LTS is more recently updated than the latest LTS.
+            assert(tag.startsWith("v7.4"));
         });
 
-        it("Would update to stable", async function() {
+        it("Would update to stable", async function () {
             const version: IPowerShellVersionDetails = {
-                "version": "7.0.0",
-                "edition": "Core",
-                "commit": "7.0.0",
-                "architecture": "X64"
+                version: "7.3.0",
+                edition: "Core",
+                commit: "7.3.0",
+                architecture: "X64",
             };
-            const updater = new UpdatePowerShell(settings, testLogger, version);
+            const updater = new UpdatePowerShell(testLogger, version);
             // @ts-expect-error method is private.
             const tag: string | undefined = await updater.maybeGetNewRelease();
             // NOTE: This will need to be updated each new major stable.
-            assert(tag?.startsWith("v7.3"));
+            // TODO: Upstream bug causes LTS releases to update the stable info.
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+            assert(tag?.startsWith("v7.6") || tag?.startsWith("v7.4"));
         });
     });
 });

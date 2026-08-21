@@ -15,7 +15,7 @@ active editor's language mode is PowerShell.
 
 ### Using Windows PowerShell 5.1
 
-While we _highly encourage_ the use of [PowerShell Core 7.2][], if you must use Windows
+While we _highly encourage_ the use of [PowerShell 7.4 LTS][], if you must use Windows
 PowerShell 5.1 we attempt to support it on a best-effort basis. Unfortunately, being two
 major versions behind and in maintenance mode, Windows PowerShell is missing many of the
 bug fixes and APIs we use to make the extension experience great. So please, if you can,
@@ -253,11 +253,11 @@ Logs provide context for what was happening when the issue occurred. **You shoul
 your logs for any sensitive information you would not like to share online!**
 
 * Before sending through logs, try and reproduce the issue with **log level set to
-  Diagnostic**. You can set this in the [VS Code Settings][]
+  Trace**. You can set this in the [VS Code Settings][]
   (<kbd>Ctrl</kbd>+<kbd>,</kbd>) with:
 
   ```json
-  "powershell.developer.editorServicesLogLevel": "Diagnostic"
+  "powershell.developer.editorServicesLogLevel": "Trace"
   ```
 
 * After you have captured the issue with the log level turned up, you may want to return
@@ -267,13 +267,12 @@ your logs for any sensitive information you would not like to share online!**
   "powershell.developer.editorServicesLogLevel": "Normal"
   ```
 
-* Logs are located at
-  `~/.vscode[-insiders]/extensions/ms-vscode.powershell[-preview]-<version>/logs`.
-  For example: `~/.vscode/extensions/ms-vscode.powershell-2019.5.1/logs`.
+* Logs are located at:
+  * Unix: `~/.config/Code/User/globalStorage/ms-vscode.powershell/logs`.
+  * Windows: `%APPDATA%\Code\User\globalStorage\ms-vscode.powershell\sessions`
 
 * In VS Code you can open and read the logs directly from the [Command Palette][]
-  (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) with `PowerShell: Open PowerShell
-  Extension Logs Folder`.
+  (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>) with `PowerShell: Open PowerShell Extension Logs Folder`.
 
   > NOTE: Don't forget to also attach the [Language Server Protocol payload
   > logs](#provide-language-server-protocol-payload-logs)!
@@ -287,25 +286,22 @@ your logs for any sensitive information you would not like to share online!**
 
 #### Provide Language Server Protocol payload logs
 
-The extension works mostly from exchanging messages with [PowerShell Editor Services][].
+A lot of the features of the PowerShell extension actually come from Visual Studio Code directly interacting with the [PowerShell Editor Services](https://github.com/PowerShell/PowerShellEditorServices) process via a [Language Server Protocol client](https://code.visualstudio.com/api/language-extensions/language-server-extension-guide#logging-support-for-language-server).
 In some cases, getting to the bottom of a bug will require looking at the payloads of
-these messages. To do this:
+these messages. To enable viewing these messages:
 
 * Add the following setting to your settings file:
 
   ```json
-  "powershell editor services.trace.server":"verbose"
+  "powershell.trace.server":"verbose"
   ```
-
-> While VS Code will not recognize and highlight it, it is a valid option and enables
-> tracer logs on the server.
 
 * Restart VS Code and reproduce the issue.
 
 * Go into the "Output" panel (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd> or
   <kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>U</kbd>).
 
-* In the drop down on the right, select "PowerShell Editor Services".
+* In the drop down on the right, select "PowerShell Editor Services Client".
 
 * Copy the entire contents of the Output panel and paste it into the GitHub issue in the
   browser. At this point, you may delete the setting if you want.
@@ -414,7 +410,7 @@ WSManStackVersion              3.0
 [more information]: #providing-information-about-your-environment
 [open a new issue]: https://github.com/PowerShell/vscode-powershell/issues/new/choose
 [open an issue there]: https://github.com/PowerShell/PSScriptAnalyzer/issues/new/choose
-[PowerShell Core 7.2]: https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.2
+[PowerShell 7.4 LTS]: https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.4
 [semantic highlighting]: https://code.visualstudio.com/api/language-extensions/semantic-highlight-guide
 [tackling an issue]: ./development.md
 [v2021.2.2]: https://github.com/PowerShell/vscode-powershell/releases/tag/v2021.2.2
